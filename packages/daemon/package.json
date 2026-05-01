@@ -1,0 +1,40 @@
+{
+  "name": "@onboarding/daemon",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Onboarding Agent local daemon (Express + better-sqlite3 + pino) (PRD-MVP-SLIM v0.10 §6.2 B)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-migrations.mjs",
+    "dev": "pnpm build && node dist/index.js",
+    "start": "node dist/index.js",
+    "test": "vitest run --coverage",
+    "lint": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@onboarding/shared": "workspace:*",
+    "better-sqlite3": "^11.0.0",
+    "express": "^4.19.2",
+    "pino": "^9.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.10",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "@types/supertest": "^6.0.2",
+    "@vitest/coverage-v8": "^2.1.0",
+    "supertest": "^7.0.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
