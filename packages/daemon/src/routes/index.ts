@@ -10,6 +10,7 @@ import type { SystemPanelRunner } from '../p5-system-panel/index.js';
 import { createChecklistRouter } from './checklist.js';
 import { createClipboardRouter } from './clipboard.js';
 import { createConsentsRouter } from './consents.js';
+import { createRateLimitRouter } from './rate-limit.js';
 import { createStateProbeRouter } from './state-probe.js';
 import { createSystemPanelRouter } from './system-panel.js';
 import { createVerifyRouter } from './verify.js';
@@ -61,4 +62,5 @@ export function registerApiRoutes(app: Application, deps: ApiRoutesDeps): void {
       platform: deps.systemPanelPlatform,
     }),
   );
+  app.use(createRateLimitRouter({ db: deps.db, now: deps.now }));
 }
