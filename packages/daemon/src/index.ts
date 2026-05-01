@@ -2,6 +2,7 @@ import { loadChecklist } from './checklist/loader.js';
 import { defaultDbPath, openDatabase } from './db/index.js';
 import { migrate } from './db/migrate.js';
 import { logger } from './logger.js';
+import { runStateProbe } from './p1-state-probe/index.js';
 import { registerApiRoutes } from './routes/index.js';
 import { createServer } from './server.js';
 
@@ -14,7 +15,7 @@ function parsePort(): number {
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_PORT;
 }
 
-function bootstrap(): void {
+async function bootstrap(): Promise<void> {
   const dbPath = process.env.ONBOARDING_DB_PATH ?? defaultDbPath();
   const db = openDatabase(dbPath);
   const result = migrate(db);
@@ -31,10 +32,14 @@ function bootstrap(): void {
     'checklist_loaded',
   );
 
+  // Probe machine state once on boot so already-installed items auto-complete
+  // before we start serving (spec-005, PRD §7.2 F-P1-01).
+  await runStateProbe({ checklist, db, logger });
+
   const port = parsePort();
   const app = createServer({
     logger,
-    registerRoutes: (a) => registerApiRoutes(a, { checklist, db }),
+    registerRoutes: (a) => registerApiRoutes(a, { checklist, db, logger }),
   });
   const server = app.listen(port, () => {
     logger.info({ port }, 'daemon_listening');
@@ -60,4 +65,7 @@ function bootstrap(): void {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  logger.error({ err }, 'bootstrap_failed');
+  process.exit(1);
+});
