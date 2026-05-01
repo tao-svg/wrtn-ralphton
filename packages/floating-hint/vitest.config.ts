@@ -10,6 +10,7 @@ export default defineConfig({
       exclude: [
         'src/main/index.ts',
         'src/preload/index.ts',
+        'src/preload/bridge.ts',
         'src/renderer/index.ts',
       ],
       thresholds: {
