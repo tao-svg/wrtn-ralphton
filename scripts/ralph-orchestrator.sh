@@ -111,17 +111,17 @@ JSON
     if echo "$REVIEW_RESULT" | grep -q "<promise>${SPEC_ID_UPPER}_REVIEW_PASS"; then
       echo "✅ Review PASSED for $SPEC_ID"
 
-      # MR 자동 생성
+      # PR 자동 생성 (GitHub)
       cd "$IMPL_WT"
-      glab mr create \
+      gh pr create \
         --title "[Ralph] $SPEC_ID" \
-        --description "$(cat "$REVIEW_WT/reports/review-$SPEC_ID.md")" \
+        --body-file "$REVIEW_WT/reports/review-$SPEC_ID.md" \
         --label "ralph-generated,ralph-verified,review-passed" \
-        --target-branch main \
-        --source-branch "$BRANCH" \
-        || echo "MR creation failed, please create manually"
+        --base main \
+        --head "$BRANCH" \
+        || echo "PR creation failed, please create manually"
 
-      echo "✅ MR created for $SPEC_ID"
+      echo "✅ PR created for $SPEC_ID"
       return 0
 
     elif echo "$REVIEW_RESULT" | grep -q "<promise>${SPEC_ID_UPPER}_REVIEW_FAIL"; then
@@ -138,10 +138,10 @@ JSON
 
   # 3회 실패
   echo "🚨 $SPEC_ID failed after $MAX_RETRIES attempts"
-  glab issue create \
+  gh issue create \
     --title "[Ralph] $SPEC_ID 자동 처리 실패" \
     --label "ralph-failed,needs-human" \
-    --description "Spec $SPEC_ID에 대해 Impl/Review를 ${MAX_RETRIES}회 시도했으나 통과하지 못함." \
+    --body "Spec $SPEC_ID에 대해 Impl/Review를 ${MAX_RETRIES}회 시도했으나 통과하지 못함." \
     || echo "Issue creation failed"
   return 1
 }
