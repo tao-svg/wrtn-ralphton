@@ -207,6 +207,39 @@ export const VerifyRunResponseSchema = z
   .strict();
 
 // ---------------------------------------------------------------------------
+// P5+ System Panel Launch (PRD §7.5 F-P5P-01, AC-P5P-01)
+//
+// POST /api/system-panel/launch — body shape:
+//   { url: string }                — launch an explicit allowlisted URL, or
+//   { item_id, step_id }           — look the URL up from yaml
+//
+// At least one form must be provided.
+// ---------------------------------------------------------------------------
+
+export const SystemPanelLaunchRequestSchema = z
+  .object({
+    url: z.string().min(1).optional(),
+    item_id: ItemIdSchema.optional(),
+    step_id: z.string().min(1).optional(),
+  })
+  .strict()
+  .refine(
+    (data) =>
+      (typeof data.url === 'string' && data.url.length > 0) ||
+      (typeof data.item_id === 'string' && typeof data.step_id === 'string'),
+    {
+      message: 'either url or both item_id and step_id must be provided',
+    },
+  );
+
+export const SystemPanelLaunchResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    url: z.string(),
+  })
+  .strict();
+
+// ---------------------------------------------------------------------------
 // Error responses (PRD §9.1.3 401/403/429/503 + general API error)
 // ---------------------------------------------------------------------------
 
