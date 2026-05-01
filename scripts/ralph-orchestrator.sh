@@ -270,13 +270,22 @@ case "${1:-}" in
     done
     ;;
   --all)
-    WAVES=$(all_waves)
-    if [ -z "$WAVES" ]; then
-      echo "No waves found in specs/"
+    # 전체 spec을 번호 순으로 직렬 실행. wave 추상화를 우회하고
+    # spec 파일을 사전 순(== 번호 순)으로 한 건씩 처리한다.
+    # spec-templete.md(템플릿) 같은 비-번호 파일은 spec-[0-9]* 글로브로 제외.
+    SPECS=$(ls "$REPO_ROOT/specs/"spec-[0-9]*-*.md 2>/dev/null \
+            | xargs -n1 basename \
+            | sed 's/\.md$//' \
+            | sort)
+    if [ -z "$SPECS" ]; then
+      echo "No specs found in specs/"
       exit 1
     fi
-    for WAVE in $WAVES; do
-      bash "$0" --wave "$WAVE"
+    echo "=== Running all specs sequentially ==="
+    echo "$SPECS" | sed 's/^/  - /'
+    echo
+    for SPEC in $SPECS; do
+      process_spec "$SPEC" || echo "⚠️ $SPEC failed; continuing to next spec"
     done
     ;;
   *)
