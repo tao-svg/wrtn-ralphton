@@ -18,7 +18,7 @@
 ## 출력 (완료 시점에 존재해야 하는 것)
 - `packages/<package>/src/...` (구현 파일)
 - `packages/<package>/tests/...` (테스트 파일, 커버리지 80%+)
-- 필요 시 `packages/<package>/package.json` 의존성 추가 (PRD §19 카탈로그 한정)
+- 필요 시 `packages/<package>/package.json` 의존성 추가 (PRD §12 카탈로그 한정)
 
 ## Acceptance Criteria
 PRD §11에 정의된 시나리오 중 본 spec이 책임지는 항목을 체크박스로 나열.
@@ -29,13 +29,13 @@ PRD §11에 정의된 시나리오 중 본 spec이 책임지는 항목을 체크
 - [ ] `pnpm lint` 에러 0
 - [ ] 테스트 커버리지 ≥ 80%
 - [ ] BOUNDARIES.md 준수 (spec 외 패키지 미수정)
-- [ ] 신규 의존성은 PRD §19 카탈로그 내에서만 사용
+- [ ] 신규 의존성은 PRD §12 카탈로그 내에서만 사용
 
 ## 참고
 - PRD §X.Y (관련 섹션 제목)
 - 데이터 모델: PRD §8
 - API 계약: PRD §9
-- 라이브러리: PRD §19.X
+- 라이브러리: PRD §12.X
 - BOUNDARIES.md
 
 ## 비범위 (이 spec에서 하지 않는 것)

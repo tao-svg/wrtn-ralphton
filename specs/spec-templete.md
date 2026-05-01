@@ -23,7 +23,7 @@
 - [ ] pnpm test, pnpm build, pnpm lint 모두 통과
 
 ## 참고
-- PRD docs/PRD.md §X (관련 섹션)
+- PRD docs/PRD-MVP-SLIM.md §X (관련 섹션)
 - BOUNDARIES.md 준수
 
 ## 완료 신호
