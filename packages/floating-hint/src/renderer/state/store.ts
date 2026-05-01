@@ -1,5 +1,6 @@
 import type {
   ChecklistItem,
+  HighlightRegion,
   ItemState,
   VisionGuideResult,
   VisionVerifyResult,
@@ -38,10 +39,16 @@ export interface RendererApi {
   getConsents(): Promise<unknown>;
 }
 
+export interface OverlayClient {
+  show(region: HighlightRegion): void;
+  hide(): void;
+}
+
 export interface CreateStoreOptions {
   api?: RendererApi;
   checklist?: ChecklistItem[];
   pollIntervalMs?: number;
+  overlay?: OverlayClient;
 }
 
 export interface Store {
@@ -95,6 +102,7 @@ export function createStore(options: CreateStoreOptions = {}): Store {
   const checklist = options.checklist ?? [];
   const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const api = options.api;
+  const overlay = options.overlay;
   let pollHandle: ReturnType<typeof setInterval> | null = null;
 
   function setState(next: AppState): void {
@@ -178,6 +186,15 @@ export function createStore(options: CreateStoreOptions = {}): Store {
     return { type: 'ERROR', status: 500, body: null };
   }
 
+  function applyGuideOverlay(result: VisionGuideResult): void {
+    if (!overlay) return;
+    if (result.highlight_region) {
+      overlay.show(result.highlight_region);
+    } else {
+      overlay.hide();
+    }
+  }
+
   async function performGuide(): Promise<void> {
     if (!api) return;
     const ctx = state.context;
@@ -187,8 +204,10 @@ export function createStore(options: CreateStoreOptions = {}): Store {
         item_id: ctx.itemId,
         step_id: ctx.stepId,
       });
+      applyGuideOverlay(res.result);
       dispatch({ type: 'GUIDE_SUCCESS', result: res.result });
     } catch (err) {
+      overlay?.hide();
       dispatch(errorEvent(err));
     }
   }
@@ -217,6 +236,7 @@ export function createStore(options: CreateStoreOptions = {}): Store {
 
   async function requestVerify(): Promise<void> {
     if (!state.context.itemId || !state.context.stepId) return;
+    overlay?.hide();
     dispatch({ type: 'REQUEST_VERIFY' });
     if (state.mode.kind !== 'loading') return;
     await performVerify();

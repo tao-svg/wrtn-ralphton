@@ -6,8 +6,9 @@ const browserWindowMock = vi.fn().mockImplementation(() => ({
   setIgnoreMouseEvents: vi.fn(),
   loadFile: vi.fn().mockResolvedValue(undefined),
   show: vi.fn(),
+  hide: vi.fn(),
   isDestroyed: () => false,
-  webContents: { on: vi.fn() },
+  webContents: { on: vi.fn(), send: vi.fn() },
   on: vi.fn(),
 }));
 
@@ -17,12 +18,19 @@ const appMock = {
   quit: vi.fn(),
 };
 
+const ipcMainMock = {
+  on: vi.fn(),
+  removeAllListeners: vi.fn(),
+};
+
 vi.mock('electron', () => ({
   app: appMock,
   BrowserWindow: browserWindowMock,
+  ipcMain: ipcMainMock,
   screen: {
     getPrimaryDisplay: () => ({
       workArea: { x: 0, y: 25, width: 1440, height: 875 },
+      scaleFactor: 2,
     }),
   },
   contextBridge: { exposeInMainWorld: vi.fn() },
@@ -45,10 +53,12 @@ afterAll(() => {
 });
 
 describe('main process smoke', () => {
-  it('boots the Electron app and creates the floating-hint BrowserWindow', async () => {
+  it('boots the Electron app and creates both the hint and overlay BrowserWindows', async () => {
     browserWindowMock.mockClear();
     appMock.whenReady.mockClear();
     appMock.on.mockClear();
+    ipcMainMock.on.mockClear();
+    ipcMainMock.removeAllListeners.mockClear();
 
     await import('../src/main/index.js');
     // Allow whenReady().then(...) microtasks to run.
@@ -56,23 +66,58 @@ describe('main process smoke', () => {
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(appMock.whenReady).toHaveBeenCalled();
-    expect(browserWindowMock).toHaveBeenCalledTimes(1);
+    expect(browserWindowMock).toHaveBeenCalledTimes(2);
 
-    const opts = browserWindowMock.mock.calls[0]?.[0] as Record<string, unknown>;
-    expect(opts).toBeTruthy();
-    expect(opts.alwaysOnTop).toBe(true);
-    expect(opts.frame).toBe(false);
-    expect(opts.transparent).toBe(true);
-    expect(opts.backgroundColor).toBe('#00000000');
-    expect(opts.focusable).toBe(false);
-    expect(opts.width).toBe(360);
-    expect(opts.height).toBe(200);
+    const hintOpts = browserWindowMock.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(hintOpts).toBeTruthy();
+    expect(hintOpts.alwaysOnTop).toBe(true);
+    expect(hintOpts.frame).toBe(false);
+    expect(hintOpts.transparent).toBe(true);
+    expect(hintOpts.backgroundColor).toBe('#00000000');
+    expect(hintOpts.focusable).toBe(false);
+    expect(hintOpts.width).toBe(360);
+    expect(hintOpts.height).toBe(200);
 
-    const winInstance = browserWindowMock.mock.results[0]?.value as {
+    const overlayOpts = browserWindowMock.mock.calls[1]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(overlayOpts).toBeTruthy();
+    expect(overlayOpts.transparent).toBe(true);
+    expect(overlayOpts.focusable).toBe(false);
+    expect(overlayOpts.hasShadow).toBe(false);
+    expect(overlayOpts.width).toBe(1440);
+    expect(overlayOpts.height).toBe(875);
+    expect(overlayOpts.show).toBe(false);
+
+    const hintWin = browserWindowMock.mock.results[0]?.value as {
       setAlwaysOnTop: ReturnType<typeof vi.fn>;
       loadFile: ReturnType<typeof vi.fn>;
     };
-    expect(winInstance.setAlwaysOnTop).toHaveBeenCalledWith(true, 'floating');
-    expect(winInstance.loadFile).toHaveBeenCalled();
+    expect(hintWin.setAlwaysOnTop).toHaveBeenCalledWith(true, 'floating');
+    expect(hintWin.loadFile).toHaveBeenCalled();
+
+    const overlayWin = browserWindowMock.mock.results[1]?.value as {
+      setAlwaysOnTop: ReturnType<typeof vi.fn>;
+      setIgnoreMouseEvents: ReturnType<typeof vi.fn>;
+      loadFile: ReturnType<typeof vi.fn>;
+    };
+    expect(overlayWin.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver');
+    expect(overlayWin.setIgnoreMouseEvents).toHaveBeenCalledWith(true, {
+      forward: true,
+    });
+    expect(overlayWin.loadFile).toHaveBeenCalled();
+
+    expect(ipcMainMock.on).toHaveBeenCalledWith(
+      'overlay:show',
+      expect.any(Function),
+    );
+    expect(ipcMainMock.on).toHaveBeenCalledWith(
+      'overlay:hide',
+      expect.any(Function),
+    );
   });
 });

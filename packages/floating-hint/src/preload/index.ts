@@ -1,4 +1,5 @@
-import { contextBridge } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
+import type { HighlightRegion } from '@onboarding/shared';
 import {
   createDaemonClient,
   type ClipboardInput,
@@ -26,3 +27,15 @@ const exposed: DaemonClientBridge = {
 };
 
 contextBridge.exposeInMainWorld('daemonClient', exposed);
+
+export interface OverlayController {
+  show(region: HighlightRegion): void;
+  hide(): void;
+}
+
+const overlayController: OverlayController = {
+  show: (region) => ipcRenderer.send('overlay:show', region),
+  hide: () => ipcRenderer.send('overlay:hide'),
+};
+
+contextBridge.exposeInMainWorld('overlayController', overlayController);

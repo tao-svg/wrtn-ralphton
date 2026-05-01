@@ -1,6 +1,7 @@
 import type { DaemonClientBridge } from '../preload/bridge.js';
 import type {
   ChecklistResponse,
+  OverlayClient,
   RendererApi,
   VisionGuideResponse,
   VisionVerifyResponse,
@@ -38,4 +39,9 @@ export function createRendererApi(
     getRateLimit: () => bridge.getRateLimit() as Promise<RateLimitInfo>,
     getConsents: () => bridge.getConsents(),
   };
+}
+
+export function resolveOverlayClient(): OverlayClient | undefined {
+  const global = globalThis as { overlayController?: OverlayClient };
+  return global.overlayController;
 }

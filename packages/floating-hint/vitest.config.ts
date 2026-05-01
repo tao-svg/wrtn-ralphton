@@ -11,7 +11,9 @@ export default defineConfig({
         'src/main/index.ts',
         'src/preload/index.ts',
         'src/preload/bridge.ts',
+        'src/preload/overlay.ts',
         'src/renderer/index.ts',
+        'src/renderer/overlay/index.ts',
       ],
       thresholds: {
         lines: 80,
