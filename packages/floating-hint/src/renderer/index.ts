@@ -6,7 +6,7 @@
 
 import { HintWindow } from './components/HintWindow.js';
 import { applyVNode, type DomLike } from './dom-mount.js';
-import { createRendererApi } from './api.js';
+import { createRendererApi, resolveOverlayClient } from './api.js';
 import { createStore } from './state/store.js';
 
 const RATE_TICK_MS = 1_000;
@@ -15,7 +15,8 @@ function bootstrap(): void {
   const root = document.getElementById('app');
   if (!root) return;
   const api = createRendererApi();
-  const store = createStore({ api });
+  const overlay = resolveOverlayClient();
+  const store = createStore({ api, overlay });
   const dom: DomLike = {
     createElement: (tag) =>
       document.createElement(tag) as unknown as ReturnType<DomLike['createElement']>,

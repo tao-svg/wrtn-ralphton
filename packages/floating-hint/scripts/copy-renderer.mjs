@@ -8,7 +8,10 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = resolve(here, '..');
 
-const assets = [['src/renderer/index.html', 'dist/renderer/index.html']];
+const assets = [
+  ['src/renderer/index.html', 'dist/renderer/index.html'],
+  ['src/renderer/overlay/index.html', 'dist/renderer/overlay/index.html'],
+];
 
 for (const [from, to] of assets) {
   const src = resolve(pkgRoot, from);
