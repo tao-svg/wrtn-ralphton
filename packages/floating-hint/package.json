@@ -1,0 +1,32 @@
+{
+  "name": "@onboarding/floating-hint",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Onboarding Agent Floating Hint Window — Electron always-on-top translucent window (PRD-MVP-SLIM v0.10 §6.2 C)",
+  "type": "module",
+  "main": "./dist/main/index.js",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-renderer.mjs",
+    "dev": "electron .",
+    "test": "vitest run --coverage",
+    "lint": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@onboarding/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "electron": "^32.0.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
