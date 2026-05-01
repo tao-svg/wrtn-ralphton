@@ -1,0 +1,146 @@
+version: 2
+schema: ai-coaching
+
+items:
+  # 항목 1: P2 + P4
+  - id: install-homebrew
+    title: Homebrew 설치
+    estimated_minutes: 3
+
+    clipboard_inject:
+      command: '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+      ui_hint: "터미널을 열고 ⌘V로 붙여넣어 실행하세요"
+
+    verification:
+      type: command
+      command: brew --version
+      poll_interval_sec: 5
+
+  # 항목 2: P2 + P4
+  - id: configure-git
+    title: Git 글로벌 설정
+    estimated_minutes: 1
+
+    inputs:
+      - key: git_name
+        label: Git 사용자 이름
+        required: true
+      - key: git_email
+        label: Git 이메일
+        required: true
+
+    clipboard_inject:
+      command: |
+        git config --global user.name "{{inputs.git_name}}" && \
+        git config --global user.email "{{inputs.git_email}}"
+
+    verification:
+      type: command
+      command: git config --global user.email
+      expect_contains: "{{inputs.git_email}}"
+
+  # 항목 3: P5+ + P8 + P4 (MVP 핵심 시연)
+  - id: install-security-agent
+    title: 사내 보안 에이전트 설치
+    estimated_minutes: 15
+
+    ai_coaching:
+      overall_goal: |
+        사용자가 사내 보안 에이전트(.pkg)를 다운로드하고 설치한 뒤,
+        시스템 환경설정에서 권한을 부여하고 백그라운드 프로세스가 실행되도록 한다.
+
+      steps:
+        - id: download
+          intent: |
+            security.wrtn.io/download 페이지에서 .pkg 파일을 다운로드한다.
+          success_criteria: |
+            ~/Downloads 폴더에 SecurityAgent-*.pkg 파일이 존재한다.
+
+        - id: install
+          intent: |
+            .pkg 파일을 더블클릭해서 설치 마법사를 진행한다.
+            관리자 비밀번호 입력이 필요하다.
+          success_criteria: |
+            /Applications/SecurityAgent.app 디렉토리가 존재한다.
+
+        - id: grant_permission
+          intent: |
+            시스템 환경설정 → 개인정보 보호 및 보안에서
+            SecurityAgent에 디스크 접근 권한을 부여한다.
+          system_panel_url: x-apple.systempreferences:com.apple.preference.security
+          success_criteria: |
+            pgrep SecurityAgent 결과가 PID를 반환한다.
+          common_mistakes: |
+            - 잠금 해제 안 한 채 클릭 시도
+            - SecurityAgent가 PrivilegedHelperTools 폴더에 있어 일반 Applications 폴더에서 못 찾음
+
+    verification:
+      type: process_check
+      process_name: SecurityAgent
+      poll_interval_sec: 5
+
+  # 항목 4: P5+ + P8 + P4
+  - id: setup-vpn
+    title: 사내망 VPN 설정
+    estimated_minutes: 10
+
+    clipboard_inject:
+      command: 'open https://vpn.wrtn.ax/profile'
+      ui_hint: "VPN 프로파일 다운로드 페이지가 열립니다"
+
+    ai_coaching:
+      overall_goal: "VPN 프로파일을 macOS에 등록하고 연결 가능 상태로"
+      steps:
+        - id: download_profile
+          intent: ".mobileconfig 파일 다운로드"
+          success_criteria: "~/Downloads에 wrtn-vpn.mobileconfig 존재"
+
+        - id: install_profile
+          intent: "다운로드된 파일을 더블클릭하여 시스템 환경설정으로 가져오기"
+          system_panel_url: x-apple.systempreferences:com.apple.preferences.configurationprofiles
+          success_criteria: "프로파일 목록에 WRTN VPN 표시"
+
+    verification:
+      type: command
+      command: scutil --nc list
+      expect_contains: "WRTN VPN"
+
+  # 항목 5: P2 + P8 (Gmail 서명)
+  - id: setup-gmail-signature
+    title: Gmail 회사 표준 서명 등록
+    estimated_minutes: 5
+
+    inputs:
+      - key: job_title
+        label: 직무
+        required: true
+      - key: phone
+        label: 전화번호
+        required: true
+
+    clipboard_inject:
+      command: 'open https://mail.google.com/mail/u/0/#settings/general'
+      ui_hint: "Gmail 설정 페이지가 열립니다"
+
+    template:
+      content: |
+        {{user_profile.name}}
+        {{inputs.job_title}}
+        Wrtn Technologies
+        Tel: {{inputs.phone}}
+      paste_target: "Gmail 서명 입력란에 ⌘V로 붙여넣기"
+
+    ai_coaching:
+      overall_goal: "Gmail 설정의 서명 영역에 회사 표준 서명을 등록"
+      steps:
+        - id: navigate_to_signature
+          intent: "Gmail 설정에서 '서명' 영역까지 스크롤"
+          success_criteria: "화면에 '서명' 헤더와 [+ 새로 만들기] 버튼이 보임"
+
+        - id: input_signature
+          intent: "[+ 새로 만들기]로 서명 추가, 클립보드 내용 붙여넣기, 기본 서명으로 지정"
+          success_criteria: "서명 미리보기에 사용자 이름이 표시되고 기본 서명 드롭다운에 선택됨"
+
+        - id: save
+          intent: "페이지 하단 [변경사항 저장] 버튼 클릭"
+          success_criteria: "변경사항 저장 알림 표시"
