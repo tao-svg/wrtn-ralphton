@@ -98,9 +98,11 @@ JSON
     fi
 
     # Impl Ralph 실행 — claude 종료 코드는 무시하고 출력 전체로 판정
-    SPEC_ID="$SPEC_ID" SPEC_ID_UPPER="$SPEC_ID_UPPER" \
-      claude --dangerously-skip-permissions \
-        --append-system-prompt "$(envsubst < "$REPO_ROOT/scripts/ralph-impl-prompt.md")" \
+    # NOTE: envsubst는 자식 프로세스이므로 env 변수 prefix 방식이 필요 (local 변수는 못 봄)
+    IMPL_PROMPT=$(SPEC_ID="$SPEC_ID" SPEC_ID_UPPER="$SPEC_ID_UPPER" \
+                    envsubst < "$REPO_ROOT/scripts/ralph-impl-prompt.md")
+    claude --dangerously-skip-permissions \
+        --append-system-prompt "$IMPL_PROMPT" \
         "specs/$SPEC_ID.md를 구현하세요. plan을 세우고 차근차근 진행하세요." \
         || echo "(impl claude exited non-zero, continuing)"
 
@@ -109,17 +111,21 @@ JSON
       continue
     fi
 
-    # 2. Review 워크트리 준비 — fetch + reset --hard로 깨끗하게 동기화
+    # 2. Review 워크트리 준비 — impl 워크트리가 같은 브랜치를 점유 중이므로
+    # --detach로 commit 자체에 새 worktree를 만들어 충돌 회피.
     if [ ! -d "$REVIEW_WT" ]; then
       cd "$REPO_ROOT"
-      git worktree add "$REVIEW_WT" "$BRANCH"
+      if ! git worktree add --detach "$REVIEW_WT" "$BRANCH"; then
+        echo "⚠️ review worktree 생성 실패 (attempt $ATTEMPT) — retrying"
+        continue
+      fi
     else
-      cd "$REVIEW_WT"
+      cd "$REVIEW_WT" || { echo "⚠️ cd 실패 — retrying"; continue; }
       git fetch origin "$BRANCH"
       git reset --hard "origin/$BRANCH"
     fi
 
-    cd "$REVIEW_WT"
+    cd "$REVIEW_WT" || { echo "⚠️ cd 실패 — retrying"; continue; }
     mkdir -p .claude reports
 
     # Review용 권한 제한 — Edit/Write/MultiEdit/NotebookEdit 모두 막아야
@@ -163,9 +169,10 @@ JSON
 JSON
 
     # Review Ralph 실행 (단발, stop hook 없이)
-    REVIEW_RESULT=$(SPEC_ID="$SPEC_ID" SPEC_ID_UPPER="$SPEC_ID_UPPER" \
-      claude --dangerously-skip-permissions \
-        --append-system-prompt "$(envsubst < "$REPO_ROOT/scripts/ralph-review-prompt.md")" \
+    REVIEW_PROMPT=$(SPEC_ID="$SPEC_ID" SPEC_ID_UPPER="$SPEC_ID_UPPER" \
+                      envsubst < "$REPO_ROOT/scripts/ralph-review-prompt.md")
+    REVIEW_RESULT=$(claude --dangerously-skip-permissions \
+        --append-system-prompt "$REVIEW_PROMPT" \
         "$SPEC_ID 코드 리뷰를 수행하세요" 2>&1 | tee "$REVIEW_LOG")
 
     # 결과 파싱
