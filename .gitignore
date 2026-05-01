@@ -10,3 +10,8 @@ dist/
 
 # OS
 .DS_Store
+
+# Ralph orchestrator
+.worktrees/
+.ralph-iteration-count
+.ralph-feedback.md

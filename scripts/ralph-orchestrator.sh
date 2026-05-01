@@ -11,8 +11,10 @@
 set -uo pipefail
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
-WORKTREE_BASE=$(dirname "$REPO_ROOT")
+WORKTREE_BASE="$REPO_ROOT/.worktrees"
 MAX_RETRIES=3
+
+mkdir -p "$WORKTREE_BASE"
 
 # ---- 헬퍼: spec 파일에서 Wave 번호 매칭 ----
 # spec 파일의 메타 필드는 `- **Wave**: N` 형태이므로 별표를 정확히 매치한다.
