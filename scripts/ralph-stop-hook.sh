@@ -13,10 +13,11 @@ if grep -q "<promise>SPEC_.*_IMPL_DONE</promise>" "$TRANSCRIPT_PATH"; then
 fi
 
 # 안전장치: 50회 이상 반복하면 강제 종료
-ITER_FILE=".ralph-iteration-count"
-COUNT=$(cat $ITER_FILE 2>/dev/null || echo 0)
+# CLAUDE_PROJECT_DIR로 카운터 위치를 고정 — cwd가 바뀌어도 카운트가 초기화되지 않도록
+ITER_FILE="${CLAUDE_PROJECT_DIR:-.}/.ralph-iteration-count"
+COUNT=$(cat "$ITER_FILE" 2>/dev/null || echo 0)
 COUNT=$((COUNT + 1))
-echo $COUNT > $ITER_FILE
+echo $COUNT > "$ITER_FILE"
 
 if [ $COUNT -gt 50 ]; then
   echo '{"decision": "approve", "reason": "Max iterations (50) reached - forcing exit"}'
