@@ -13,6 +13,8 @@ import {
   RateLimitResponseSchema,
   StartItemParamsSchema,
   StartItemResponseSchema,
+  SystemPanelLaunchRequestSchema,
+  SystemPanelLaunchResponseSchema,
   VerifyRunRequestSchema,
   VerifyRunResponseSchema,
   VisionGuideErrorResponseSchema,
@@ -392,6 +394,77 @@ describe('Verify run endpoint (PRD §9.1.8)', () => {
   it('rejects an "unclear" status (only used by Vision verify)', () => {
     expect(() =>
       VerifyRunResponseSchema.parse({ status: 'unclear', details: '' }),
+    ).toThrow();
+  });
+});
+
+describe('SystemPanelLaunchRequestSchema (P5+ system-panel)', () => {
+  it('round-trips a request with only url', () => {
+    const v = {
+      url: 'x-apple.systempreferences:com.apple.preference.security',
+    };
+    expect(roundTrip(SystemPanelLaunchRequestSchema, v)).toEqual(v);
+  });
+
+  it('round-trips a request with only item_id+step_id (yaml lookup)', () => {
+    const v = { item_id: 'install-security-agent', step_id: 'grant_permission' };
+    expect(roundTrip(SystemPanelLaunchRequestSchema, v)).toEqual(v);
+  });
+
+  it('round-trips a request with all three fields (url takes precedence at handler)', () => {
+    const v = {
+      url: 'https://override.example',
+      item_id: 'install-security-agent',
+      step_id: 'grant_permission',
+    };
+    expect(roundTrip(SystemPanelLaunchRequestSchema, v)).toEqual(v);
+  });
+
+  it('rejects an empty body (refine: at least one form must be provided)', () => {
+    expect(() => SystemPanelLaunchRequestSchema.parse({})).toThrow();
+  });
+
+  it('rejects body with only item_id (refine: step_id is also required)', () => {
+    expect(() =>
+      SystemPanelLaunchRequestSchema.parse({ item_id: 'foo' }),
+    ).toThrow();
+  });
+
+  it('rejects body with only step_id (refine: item_id is also required)', () => {
+    expect(() =>
+      SystemPanelLaunchRequestSchema.parse({ step_id: 'foo' }),
+    ).toThrow();
+  });
+
+  it('rejects an empty url string (z.string().min(1))', () => {
+    expect(() =>
+      SystemPanelLaunchRequestSchema.parse({ url: '' }),
+    ).toThrow();
+  });
+
+  it('rejects extra unknown keys (strict)', () => {
+    expect(() =>
+      SystemPanelLaunchRequestSchema.parse({
+        url: 'https://example.com',
+        evil: true,
+      }),
+    ).toThrow();
+  });
+
+  it('rejects non-string url', () => {
+    expect(() =>
+      SystemPanelLaunchRequestSchema.parse({ url: 42 }),
+    ).toThrow();
+  });
+
+  it('round-trips response { ok: true, url }', () => {
+    const v = { ok: true as const, url: 'https://example.com' };
+    expect(roundTrip(SystemPanelLaunchResponseSchema, v)).toEqual(v);
+  });
+
+  it('rejects response with ok: false', () => {
+    expect(() =>
+      SystemPanelLaunchResponseSchema.parse({ ok: false, url: 'https://x' }),
     ).toThrow();
   });
 });

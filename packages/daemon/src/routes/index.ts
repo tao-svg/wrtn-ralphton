@@ -6,10 +6,12 @@ import type { DatabaseInstance } from '../db/index.js';
 import type { ProbeRunner } from '../p1-state-probe/probes.js';
 import type { ClipboardRunner } from '../p2-clipboard/index.js';
 import type { VerifyRunner } from '../p4-verify/index.js';
+import type { SystemPanelRunner } from '../p5-system-panel/index.js';
 import { createChecklistRouter } from './checklist.js';
 import { createClipboardRouter } from './clipboard.js';
 import { createConsentsRouter } from './consents.js';
 import { createStateProbeRouter } from './state-probe.js';
+import { createSystemPanelRouter } from './system-panel.js';
 import { createVerifyRouter } from './verify.js';
 
 export interface ApiRoutesDeps {
@@ -20,6 +22,8 @@ export interface ApiRoutesDeps {
   clipboardRunner?: ClipboardRunner;
   clipboardPlatform?: NodeJS.Platform;
   verifyRunner?: VerifyRunner;
+  systemPanelRunner?: SystemPanelRunner;
+  systemPanelPlatform?: NodeJS.Platform;
   logger?: Logger;
 }
 
@@ -48,6 +52,13 @@ export function registerApiRoutes(app: Application, deps: ApiRoutesDeps): void {
       runner: deps.verifyRunner,
       now: deps.now,
       logger: deps.logger,
+    }),
+  );
+  app.use(
+    createSystemPanelRouter({
+      checklist: deps.checklist,
+      runner: deps.systemPanelRunner,
+      platform: deps.systemPanelPlatform,
     }),
   );
 }
