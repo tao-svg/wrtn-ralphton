@@ -48,6 +48,13 @@ process_spec() {
   # 직전 spec이 머지되었을 수 있으므로 origin/main 캐시 갱신
   (cd "$REPO_ROOT" && git fetch origin main >/dev/null 2>&1) || true
 
+  # 이미 머지된 PR이 있으면 스킵 (재실행 시 무한 재처리 방지)
+  EXISTING_MERGED=$(gh pr list --search "head:$BRANCH" --state merged --json number --jq '.[0].number' 2>/dev/null || echo "")
+  if [ -n "$EXISTING_MERGED" ]; then
+    echo "✓ $SPEC_ID already merged in PR #$EXISTING_MERGED — skipping"
+    return 0
+  fi
+
   while [ $ATTEMPT -lt $MAX_RETRIES ]; do
     ATTEMPT=$((ATTEMPT + 1))
     echo "--- Attempt $ATTEMPT/$MAX_RETRIES ---"
@@ -196,12 +203,31 @@ JSON
       fi
       echo "✅ PR created for $SPEC_ID"
 
-      # 자동 머지 — 사람 개입 0회 보장. 보호 룰이 있으면 --admin으로 재시도.
-      if gh pr merge "$BRANCH" --squash --delete-branch; then
+      # 자동 머지 직전에 worktree 제거 — gh pr merge --delete-branch가 cleanup
+      # 단계에서 'main is already used by worktree' 충돌을 일으키지 않도록.
+      cd "$REPO_ROOT"
+      git worktree remove "$IMPL_WT" --force 2>/dev/null || rm -rf "$IMPL_WT"
+      git worktree remove "$REVIEW_WT" --force 2>/dev/null || rm -rf "$REVIEW_WT"
+      git worktree prune
+
+      # 자동 머지. gh exit code가 false여도 실제로는 서버에서 머지됐을 수 있어
+      # PR 상태를 직접 확인해 false-positive escalate를 막는다.
+      MERGE_OK=0
+      if gh pr merge "$BRANCH" --squash --delete-branch 2>&1; then
+        MERGE_OK=1
         echo "✅ PR merged for $SPEC_ID"
-      elif gh pr merge "$BRANCH" --squash --delete-branch --admin; then
+      elif gh pr merge "$BRANCH" --squash --delete-branch --admin 2>&1; then
+        MERGE_OK=1
         echo "✅ PR merged (admin) for $SPEC_ID"
       else
+        PR_STATE=$(gh pr view "$BRANCH" --json state --jq '.state' 2>/dev/null || echo "UNKNOWN")
+        if [ "$PR_STATE" = "MERGED" ]; then
+          MERGE_OK=1
+          echo "✅ PR was actually merged (gh local cleanup error ignored)"
+        fi
+      fi
+
+      if [ "$MERGE_OK" -eq 0 ]; then
         echo "🚨 auto-merge failed — escalating to needs-human"
         gh issue create \
           --title "[Ralph] $SPEC_ID PR 자동 머지 실패" \
@@ -211,12 +237,9 @@ JSON
         return 1
       fi
 
-      # 머지 성공 → 워크트리 정리 + main 캐시 갱신
-      cd "$REPO_ROOT"
-      git worktree remove "$IMPL_WT" --force 2>/dev/null || rm -rf "$IMPL_WT"
-      git worktree remove "$REVIEW_WT" --force 2>/dev/null || rm -rf "$REVIEW_WT"
-      git worktree prune
+      # 잔여 정리
       git branch -D "$BRANCH" 2>/dev/null || true
+      git push origin --delete "$BRANCH" 2>/dev/null || true
       git fetch origin main >/dev/null 2>&1 || true
 
       return 0
