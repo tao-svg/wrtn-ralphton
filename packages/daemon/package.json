@@ -5,13 +5,16 @@
   "description": "Onboarding Agent local daemon (Express + better-sqlite3 + pino) (PRD-MVP-SLIM v0.10 §6.2 B)",
   "type": "module",
   "main": "./dist/index.js",
+  "bin": {
+    "onboarding": "./dist/cli/index.js"
+  },
   "files": [
     "dist",
     "src",
     "content"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node scripts/copy-migrations.mjs",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-migrations.mjs && node scripts/cli-shebang.mjs",
     "dev": "pnpm build && node dist/index.js",
     "start": "node dist/index.js",
     "test": "vitest run --coverage",
@@ -20,10 +23,14 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
+    "@inquirer/prompts": "^5.0.0",
     "@onboarding/shared": "workspace:*",
     "better-sqlite3": "^11.0.0",
+    "commander": "^12.0.0",
     "execa": "^9.0.0",
     "express": "^4.19.2",
+    "ora": "^8.0.0",
+    "picocolors": "^1.0.0",
     "pino": "^9.0.0",
     "sharp": "^0.33.5",
     "yaml": "^2.4.0",
