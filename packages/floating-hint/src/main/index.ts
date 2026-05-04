@@ -13,9 +13,9 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const PRELOAD_PATH = path.join(__dirname, '..', 'preload', 'index.js');
+const PRELOAD_PATH = path.join(__dirname, '..', 'preload', 'index.cjs');
 const RENDERER_HTML_PATH = path.join(__dirname, '..', 'renderer', 'index.html');
-const OVERLAY_PRELOAD_PATH = path.join(__dirname, '..', 'preload', 'overlay.js');
+const OVERLAY_PRELOAD_PATH = path.join(__dirname, '..', 'preload', 'overlay.cjs');
 const OVERLAY_HTML_PATH = path.join(
   __dirname,
   '..',
@@ -28,10 +28,42 @@ function createMainWindow(): BrowserWindow {
   const primary = screen.getPrimaryDisplay();
   const opts = buildBrowserWindowOptions(primary.workArea, PRELOAD_PATH);
   const win = new BrowserWindow(opts);
-  win.setAlwaysOnTop(true, 'floating');
+  // 'screen-saver' level (reference impl): top-most + still receives clicks.
+  // 'floating' level on macOS makes the window panel-like and can swallow clicks.
+  win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+  // [DEBUG] forward all renderer console messages to main stdout
+  win.webContents.on('console-message', (_event, level, message, line, source) => {
+    console.log(`[renderer:${level}] ${message} (${source}:${line})`);
+  });
+  // [DEBUG] forward unhandled renderer errors
+  win.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[renderer-gone]', details);
+  });
+
   void win.loadFile(RENDERER_HTML_PATH).then(() => {
     win.show();
+    win.webContents.openDevTools({ mode: 'detach' });
+
+    // [DEBUG] after mount settles, dump DOM and globals
+    setTimeout(() => {
+      void win.webContents
+        .executeJavaScript(
+          `JSON.stringify({
+             appHTML: (document.getElementById('app')?.innerHTML ?? '(no #app)').slice(0, 500),
+             buttons: Array.from(document.querySelectorAll('button')).map(b => ({
+               testid: b.getAttribute('data-testid'),
+               text: b.textContent,
+               disabled: b.disabled,
+             })),
+             daemonClient: typeof window.daemonClient,
+             overlayController: typeof window.overlayController,
+           })`,
+        )
+        .then((result) => console.log('[debug-dump]', result))
+        .catch((err) => console.error('[debug-dump-fail]', err));
+    }, 2000);
   });
   return win;
 }

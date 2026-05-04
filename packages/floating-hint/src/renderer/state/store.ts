@@ -126,9 +126,15 @@ export function createStore(options: CreateStoreOptions = {}): Store {
       items.find((i) => i.status === 'in_progress') ??
       items.find((i) => i.status === 'pending');
     if (!active) return null;
-    const item = findItem(active.item_id);
-    const steps = item?.ai_coaching?.steps ?? [];
-    const stepIds = steps.map((s) => s.id);
+    // PoC: daemon이 ai_coaching을 응답에 포함하므로 그걸 우선 사용.
+    // (createStore options.checklist는 PoC에선 빈 채로 두는 케이스)
+    const apiActive = active as typeof active & {
+      ai_coaching?: { steps?: Array<{ id: string }> };
+    };
+    const apiSteps = apiActive.ai_coaching?.steps ?? [];
+    const stepIds = apiSteps.length > 0
+      ? apiSteps.map((s) => s.id)
+      : (findItem(active.item_id)?.ai_coaching?.steps ?? []).map((s) => s.id);
     const currentStepId =
       active.current_step ??
       stepIds[0] ??
@@ -153,10 +159,36 @@ export function createStore(options: CreateStoreOptions = {}): Store {
       const data = await api.getChecklist();
       const derived = deriveContext(data.items);
       if (derived) {
+        // PoC: itemId가 바뀐 경우(또는 첫 동기화)에만 stepIndex를 daemon 기준으로 reset.
+        // 같은 item에서는 [✓ 진행 확인]으로 진행한 stepIndex를 polling이 덮어쓰지 않도록.
+        const sameItem =
+          state.context.itemId === derived.context.itemId &&
+          state.stepIds.length === derived.stepIds.length;
+        if (!sameItem) {
+          dispatch({
+            type: 'SET_CONTEXT',
+            context: derived.context,
+            stepIds: derived.stepIds,
+          });
+        }
+      }
+      // PoC: daemon 응답이 ai_coaching까지 노출하므로 activeItem 자체도 보관.
+      const items = data.items as Array<{
+        item_id: string;
+        title: string;
+        status: string;
+        ai_coaching?: { overall_goal: string; steps: Array<{ id: string; intent: string; success_criteria: string }> };
+      }>;
+      const active = items.find((i) => i.status === 'in_progress')
+        ?? items.find((i) => i.status === 'pending');
+      if (active) {
         dispatch({
-          type: 'SET_CONTEXT',
-          context: derived.context,
-          stepIds: derived.stepIds,
+          type: 'SET_ACTIVE_ITEM',
+          activeItem: {
+            item_id: active.item_id,
+            title: active.title,
+            ai_coaching: active.ai_coaching,
+          },
         });
       }
     } catch {
@@ -228,14 +260,22 @@ export function createStore(options: CreateStoreOptions = {}): Store {
   }
 
   async function requestGuide(): Promise<void> {
-    if (!state.context.itemId || !state.context.stepId) return;
+    if (!state.context.itemId) return;
+    // [PoC fallback] renderer doesn't ship the yaml; use a default step id when
+    // the daemon's /api/checklist response lacks ai_coaching detail.
+    if (!state.context.stepId) {
+      state = { ...state, context: { ...state.context, stepId: 'navigate' } };
+    }
     dispatch({ type: 'REQUEST_GUIDE' });
     if (state.mode.kind !== 'loading') return;
     await performGuide();
   }
 
   async function requestVerify(): Promise<void> {
-    if (!state.context.itemId || !state.context.stepId) return;
+    if (!state.context.itemId) return;
+    if (!state.context.stepId) {
+      state = { ...state, context: { ...state.context, stepId: 'navigate' } };
+    }
     overlay?.hide();
     dispatch({ type: 'REQUEST_VERIFY' });
     if (state.mode.kind !== 'loading') return;

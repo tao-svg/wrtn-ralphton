@@ -22,8 +22,11 @@ import {
   VERIFY_SYSTEM_PROMPT,
 } from './prompts/verify.js';
 
-// PRD §6.3 (Claude 3.5 Sonnet Vision API). spec-010 메타.
-export const ANTHROPIC_VISION_MODEL = 'claude-3-5-sonnet-latest';
+// PRD §6.3 originally specified Claude 3.5 Sonnet, but that ID has been retired.
+// Override via VISION_MODEL env if needed. Default points at the current
+// Sonnet generation.
+export const ANTHROPIC_VISION_MODEL =
+  process.env.VISION_MODEL ?? 'claude-sonnet-4-5';
 export const ANTHROPIC_REQUEST_TIMEOUT_MS = 30_000;
 export const ANTHROPIC_MAX_TOKENS = 1024;
 
@@ -108,24 +111,31 @@ function extractText(message: Message): string {
 }
 
 const JSON_BLOCK_RE = /<json>([\s\S]*?)<\/json>/i;
+const FENCED_JSON_RE = /```(?:json)?\s*([\s\S]*?)\s*```/i;
+const RAW_OBJECT_RE = /\{[\s\S]*\}/;
 
 function extractJsonBlock(raw: string): unknown {
-  const match = JSON_BLOCK_RE.exec(raw);
-  if (!match || match[1] === undefined) {
-    throw new VisionResponseFormatError(
-      'vision_response_format_error: missing <json> block',
-      raw,
-    );
+  // Sonnet 4.5 sometimes drops the `<json>` tag and returns a fenced or raw
+  // JSON object instead, so accept three shapes in priority order.
+  const candidates = [
+    JSON_BLOCK_RE.exec(raw)?.[1],
+    FENCED_JSON_RE.exec(raw)?.[1],
+    RAW_OBJECT_RE.exec(raw)?.[0],
+  ];
+  for (const body of candidates) {
+    if (typeof body !== 'string') continue;
+    const trimmed = body.trim();
+    if (!trimmed) continue;
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      // try the next shape
+    }
   }
-  const body = match[1].trim();
-  try {
-    return JSON.parse(body);
-  } catch {
-    throw new VisionResponseFormatError(
-      'vision_response_format_error: invalid json',
-      raw,
-    );
-  }
+  throw new VisionResponseFormatError(
+    'vision_response_format_error: no parseable JSON block',
+    raw,
+  );
 }
 
 // 응답 JSON: { message, highlight_region: {x,y,width,height} | null, confidence }

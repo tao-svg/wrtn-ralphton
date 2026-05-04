@@ -43,12 +43,22 @@ export interface ConsentMap {
   anthropic_transmission: boolean;
 }
 
+export interface ActiveItem {
+  item_id: string;
+  title: string;
+  ai_coaching?: {
+    overall_goal: string;
+    steps: Array<{ id: string; intent: string; success_criteria: string }>;
+  };
+}
+
 export interface AppState {
   mode: UiMode;
   context: UiContext;
   stepIds: string[];
   rateLimit?: RateLimitInfo;
   consents?: ConsentMap;
+  activeItem?: ActiveItem;
 }
 
 export interface ApiErrorBody {
@@ -71,7 +81,8 @@ export type Event =
       stepIds: string[];
     }
   | { type: 'SET_RATE_LIMIT'; rateLimit: RateLimitInfo }
-  | { type: 'SET_CONSENTS'; consents: ConsentMap };
+  | { type: 'SET_CONSENTS'; consents: ConsentMap }
+  | { type: 'SET_ACTIVE_ITEM'; activeItem: ActiveItem | undefined };
 
 export const initialState: AppState = Object.freeze({
   mode: { kind: 'idle' as const },
@@ -191,6 +202,9 @@ export function reduce(state: AppState, event: Event): AppState {
     }
     case 'SET_CONSENTS': {
       return { ...state, consents: event.consents };
+    }
+    case 'SET_ACTIVE_ITEM': {
+      return { ...state, activeItem: event.activeItem };
     }
   }
 }

@@ -15,6 +15,9 @@ export interface ChecklistRouterDeps {
 
 interface ChecklistResponseItem extends ItemState {
   title: string;
+  // PoC 확장: renderer가 시나리오 디테일을 표시할 수 있게 yaml 본문도 노출.
+  ai_coaching?: ChecklistItem['ai_coaching'];
+  clipboard_inject?: ChecklistItem['clipboard_inject'];
 }
 
 export function createChecklistRouter(deps: ChecklistRouterDeps): Router {
@@ -53,16 +56,20 @@ function buildResponseItem(
   repo: ChecklistRepository,
 ): ChecklistResponseItem {
   const state = repo.getState(item.id);
-  if (state) {
-    return { ...state, title: item.title };
-  }
+  const base = state
+    ? { ...state, title: item.title }
+    : {
+        item_id: item.id,
+        title: item.title,
+        status: 'pending' as const,
+        current_step: null,
+        started_at: null,
+        completed_at: null,
+        attempt_count: 0,
+      };
   return {
-    item_id: item.id,
-    title: item.title,
-    status: 'pending',
-    current_step: null,
-    started_at: null,
-    completed_at: null,
-    attempt_count: 0,
+    ...base,
+    ai_coaching: item.ai_coaching,
+    clipboard_inject: item.clipboard_inject,
   };
 }

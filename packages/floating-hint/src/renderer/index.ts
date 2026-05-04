@@ -14,7 +14,25 @@ const RATE_TICK_MS = 1_000;
 function bootstrap(): void {
   const root = document.getElementById('app');
   if (!root) return;
-  const api = createRendererApi();
+
+  // [DEBUG] global click/mousedown probes — capture phase to see ALL events
+  document.addEventListener('mousedown', (e) => {
+    const t = e.target as HTMLElement;
+    console.log('[probe:mousedown]', t.tagName, t.dataset?.testid ?? '(no-testid)');
+  }, true);
+  document.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    console.log('[probe:click]', t.tagName, t.dataset?.testid ?? '(no-testid)');
+  }, true);
+  console.log('[probe] global listeners attached');
+  let api;
+  try {
+    api = createRendererApi();
+  } catch (e) {
+    root.textContent = `[bootstrap error] ${(e as Error).message}`;
+    console.error('renderer bootstrap failed', e);
+    return;
+  }
   const overlay = resolveOverlayClient();
   const store = createStore({ api, overlay });
   const dom: DomLike = {

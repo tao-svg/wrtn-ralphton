@@ -1,7 +1,7 @@
 import type { BrowserWindowConstructorOptions, Rectangle } from 'electron';
 
-export const HINT_WINDOW_WIDTH = 360;
-export const HINT_WINDOW_HEIGHT = 200;
+export const HINT_WINDOW_WIDTH = 380;
+export const HINT_WINDOW_HEIGHT = 480;
 export const HINT_WINDOW_MARGIN = 16;
 
 export type WorkArea = Pick<Rectangle, 'x' | 'y' | 'width' | 'height'>;
@@ -29,21 +29,21 @@ export function buildBrowserWindowOptions(
     x,
     y,
     alwaysOnTop: true,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    focusable: false,
-    resizable: false,
+    frame: true,
+    transparent: false,
+    backgroundColor: '#1e1e2e',
+    focusable: true,
+    resizable: true,
     minimizable: false,
     maximizable: false,
     skipTaskbar: true,
     show: false,
-    hasShadow: false,
+    hasShadow: true,
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: false,
     },
   };
 }

@@ -6,6 +6,7 @@ import { ProgressBadge } from './ProgressBadge.js';
 import { RatePausedBanner } from './RatePausedBanner.js';
 import { ResponsePanel } from './ResponsePanel.js';
 import { RetryBanner } from './RetryBanner.js';
+import { ScenarioPanel } from './ScenarioPanel.js';
 
 export interface HintWindowProps {
   state: AppState;
@@ -28,9 +29,14 @@ export function HintWindow(props: HintWindowProps): ElementVNode {
       stepIndex: state.context.stepIndex,
       totalSteps: state.context.totalSteps,
     }),
-    ResponsePanel({ mode: state.mode }),
-    ActionButtons({ mode: state.mode, onGuide, onVerify }),
   ];
+  const scenario = ScenarioPanel({
+    activeItem: state.activeItem,
+    context: state.context,
+  });
+  if (scenario) children.push(scenario);
+  children.push(ResponsePanel({ mode: state.mode }));
+  children.push(ActionButtons({ mode: state.mode, onGuide, onVerify }));
   if (banner) children.push(banner);
 
   return el(
