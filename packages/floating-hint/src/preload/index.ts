@@ -24,6 +24,7 @@ const exposed: DaemonClientBridge = {
   postConsent: (input: ConsentInput) => client.postConsent(input),
   postClipboard: (input: ClipboardInput) => client.postClipboard(input),
   runVerify: (input: VerifyRunInput) => client.runVerify(input),
+  openUrl: (url: string) => ipcRenderer.invoke('open-url', url),
 };
 
 contextBridge.exposeInMainWorld('daemonClient', exposed);

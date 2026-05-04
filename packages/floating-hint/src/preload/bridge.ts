@@ -15,4 +15,5 @@ export interface DaemonClientBridge {
   postConsent: (input: ConsentInput) => Promise<unknown>;
   postClipboard: (input: ClipboardInput) => Promise<unknown>;
   runVerify: (input: VerifyRunInput) => Promise<unknown>;
+  openUrl: (url: string) => Promise<unknown>;
 }

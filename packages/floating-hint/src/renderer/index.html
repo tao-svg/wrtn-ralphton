@@ -6,7 +6,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:7777"
     />
-    <title>Onboarding Hint</title>
+    <title>Wuide</title>
     <style>
       html,
       body {
@@ -42,37 +42,113 @@
         opacity: 0.7;
       }
       .scenario-panel {
-        background: rgba(80, 130, 255, 0.12);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 320px;
+        overflow-y: auto;
+      }
+
+      /* ── 목표 섹션 (compact) ── */
+      .goal-section {
+        background: rgba(80, 130, 255, 0.10);
         border-left: 3px solid #5a8eff;
         border-radius: 4px;
         padding: 8px 10px;
-        font-size: 12px;
-        max-height: 220px;
-        overflow-y: auto;
       }
-      .scenario-title {
-        font-weight: 600;
-        font-size: 13px;
+      .goal-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
         margin-bottom: 4px;
       }
-      .scenario-goal {
-        opacity: 0.75;
-        margin-bottom: 6px;
-        line-height: 1.4;
-      }
-      .scenario-step-header {
+      .goal-icon { font-size: 14px; }
+      .goal-title {
         font-weight: 600;
-        color: #8ab4ff;
-        margin-top: 6px;
+        font-size: 13px;
       }
-      .scenario-step-intent {
-        margin-top: 2px;
-        line-height: 1.4;
-      }
-      .scenario-step-success {
-        margin-top: 4px;
-        opacity: 0.6;
+      .goal-text {
+        opacity: 0.7;
         font-size: 11px;
+        line-height: 1.4;
+        white-space: pre-wrap;
+        margin-bottom: 6px;
+      }
+      .goal-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .scenario-link-btn {
+        background: #5a8eff;
+        color: #fff;
+        border: 0;
+        border-radius: 4px;
+        padding: 4px 10px;
+        font-size: 11px;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .scenario-link-btn:hover { background: #4078e6; }
+      .goal-url {
+        opacity: 0.55;
+        font-size: 10px;
+        font-family: ui-monospace, monospace;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+      }
+
+      /* ── 현재 단계 섹션 (메인, 강조) ── */
+      .step-section {
+        background: rgba(255, 255, 255, 0.06);
+        border-left: 3px solid #ffd700;
+        border-radius: 4px;
+        padding: 10px 12px;
+      }
+      .step-header {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        padding-bottom: 6px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+      }
+      .step-counter {
+        font-weight: 700;
+        font-size: 13px;
+        color: #ffd700;
+      }
+      .step-id {
+        font-size: 11px;
+        opacity: 0.5;
+        font-family: ui-monospace, monospace;
+      }
+      .step-intent-block { margin-bottom: 8px; }
+      .step-label {
+        font-size: 10px;
+        font-weight: 600;
+        opacity: 0.55;
+        margin-bottom: 3px;
+        letter-spacing: 0.3px;
+      }
+      .step-intent {
+        font-size: 13px;
+        line-height: 1.5;
+        color: #ffffff;
+        white-space: pre-wrap;
+      }
+      .step-success-block {
+        background: rgba(80, 200, 120, 0.10);
+        border-radius: 3px;
+        padding: 6px 8px;
+      }
+      .step-success {
+        font-size: 11px;
+        line-height: 1.4;
+        opacity: 0.85;
+        white-space: pre-wrap;
       }
       .response-panel {
         background: rgba(255, 255, 255, 0.05);

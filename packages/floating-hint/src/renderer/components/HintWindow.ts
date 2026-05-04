@@ -12,17 +12,30 @@ export interface HintWindowProps {
   state: AppState;
   now: number;
   onGuide: () => void;
-  onVerify: () => void;
   onRetry: () => void;
   onOpenSettings: () => void;
+  onNextStep: () => void;
+  onOpenUrl: () => void;
 }
 
 export function HintWindow(props: HintWindowProps): ElementVNode {
-  const { state, now, onGuide, onVerify, onRetry, onOpenSettings } = props;
+  const {
+    state,
+    now,
+    onGuide,
+    onRetry,
+    onOpenSettings,
+    onNextStep,
+    onOpenUrl,
+  } = props;
   const banner =
     RetryBanner({ mode: state.mode, onRetry }) ??
     RatePausedBanner({ mode: state.mode, now }) ??
     ConsentBlocker({ mode: state.mode, onOpenSettings });
+
+  const totalSteps = state.context.totalSteps;
+  const isLastStep =
+    totalSteps > 0 ? state.context.stepIndex >= totalSteps - 1 : false;
 
   const children: ElementVNode[] = [
     ProgressBadge({
@@ -33,10 +46,13 @@ export function HintWindow(props: HintWindowProps): ElementVNode {
   const scenario = ScenarioPanel({
     activeItem: state.activeItem,
     context: state.context,
+    onOpenUrl,
   });
   if (scenario) children.push(scenario);
   children.push(ResponsePanel({ mode: state.mode }));
-  children.push(ActionButtons({ mode: state.mode, onGuide, onVerify }));
+  children.push(
+    ActionButtons({ mode: state.mode, onGuide, onNext: onNextStep, isLastStep }),
+  );
   if (banner) children.push(banner);
 
   return el(

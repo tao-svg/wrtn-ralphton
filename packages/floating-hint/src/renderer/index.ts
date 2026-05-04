@@ -52,14 +52,15 @@ function bootstrap(): void {
       onGuide: () => {
         void store.requestGuide();
       },
-      onVerify: () => {
-        void store.requestVerify();
-      },
       onRetry: () => {
         void store.retry();
       },
       onOpenSettings: () => {
         // Phase 2 hook — for now nudge the user via the response panel.
+      },
+      onNextStep: () => store.nextStep(),
+      onOpenUrl: () => {
+        void store.openCurrentUrl();
       },
     });
     applyVNode(tree, rootDom, dom);

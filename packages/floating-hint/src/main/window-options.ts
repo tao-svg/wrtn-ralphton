@@ -1,7 +1,7 @@
 import type { BrowserWindowConstructorOptions, Rectangle } from 'electron';
 
-export const HINT_WINDOW_WIDTH = 380;
-export const HINT_WINDOW_HEIGHT = 480;
+export const HINT_WINDOW_WIDTH = 400;
+export const HINT_WINDOW_HEIGHT = 580;
 export const HINT_WINDOW_MARGIN = 16;
 
 export type WorkArea = Pick<Rectangle, 'x' | 'y' | 'width' | 'height'>;

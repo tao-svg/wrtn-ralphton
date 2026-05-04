@@ -50,6 +50,10 @@ export interface ActiveItem {
     overall_goal: string;
     steps: Array<{ id: string; intent: string; success_criteria: string }>;
   };
+  clipboard_inject?: {
+    command: string;
+    ui_hint?: string;
+  };
 }
 
 export interface AppState {
@@ -82,7 +86,9 @@ export type Event =
     }
   | { type: 'SET_RATE_LIMIT'; rateLimit: RateLimitInfo }
   | { type: 'SET_CONSENTS'; consents: ConsentMap }
-  | { type: 'SET_ACTIVE_ITEM'; activeItem: ActiveItem | undefined };
+  | { type: 'SET_ACTIVE_ITEM'; activeItem: ActiveItem | undefined }
+  | { type: 'GO_PREV_STEP' }
+  | { type: 'GO_NEXT_STEP' };
 
 export const initialState: AppState = Object.freeze({
   mode: { kind: 'idle' as const },
@@ -205,6 +211,25 @@ export function reduce(state: AppState, event: Event): AppState {
     }
     case 'SET_ACTIVE_ITEM': {
       return { ...state, activeItem: event.activeItem };
+    }
+    case 'GO_PREV_STEP': {
+      const nextIndex = Math.max(0, state.context.stepIndex - 1);
+      if (nextIndex === state.context.stepIndex) return state;
+      const nextStepId = state.stepIds[nextIndex] ?? state.context.stepId;
+      return {
+        ...state,
+        context: { ...state.context, stepIndex: nextIndex, stepId: nextStepId },
+      };
+    }
+    case 'GO_NEXT_STEP': {
+      const max = state.stepIds.length - 1;
+      const nextIndex = Math.min(max, state.context.stepIndex + 1);
+      if (nextIndex === state.context.stepIndex) return state;
+      const nextStepId = state.stepIds[nextIndex] ?? state.context.stepId;
+      return {
+        ...state,
+        context: { ...state.context, stepIndex: nextIndex, stepId: nextStepId },
+      };
     }
   }
 }

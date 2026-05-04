@@ -60,6 +60,9 @@ export interface Store {
   requestGuide(): Promise<void>;
   requestVerify(): Promise<void>;
   retry(): Promise<void>;
+  prevStep(): void;
+  nextStep(): void;
+  openCurrentUrl(): Promise<void>;
 }
 
 export const DEFAULT_POLL_INTERVAL_MS = 5_000;
@@ -172,12 +175,13 @@ export function createStore(options: CreateStoreOptions = {}): Store {
           });
         }
       }
-      // PoC: daemon 응답이 ai_coaching까지 노출하므로 activeItem 자체도 보관.
+      // PoC: daemon 응답이 ai_coaching/clipboard_inject까지 노출하므로 activeItem 자체도 보관.
       const items = data.items as Array<{
         item_id: string;
         title: string;
         status: string;
         ai_coaching?: { overall_goal: string; steps: Array<{ id: string; intent: string; success_criteria: string }> };
+        clipboard_inject?: { command: string; ui_hint?: string };
       }>;
       const active = items.find((i) => i.status === 'in_progress')
         ?? items.find((i) => i.status === 'pending');
@@ -188,6 +192,7 @@ export function createStore(options: CreateStoreOptions = {}): Store {
             item_id: active.item_id,
             title: active.title,
             ai_coaching: active.ai_coaching,
+            clipboard_inject: active.clipboard_inject,
           },
         });
       }
@@ -294,6 +299,27 @@ export function createStore(options: CreateStoreOptions = {}): Store {
     }
   }
 
+  function prevStep(): void {
+    dispatch({ type: 'GO_PREV_STEP' });
+  }
+
+  function nextStep(): void {
+    dispatch({ type: 'GO_NEXT_STEP' });
+  }
+
+  async function openCurrentUrl(): Promise<void> {
+    const cmd = state.activeItem?.clipboard_inject?.command;
+    if (!cmd) return;
+    const match = cmd.match(/https?:\/\/[^\s'"]+/);
+    const url = match?.[0];
+    if (!url) return;
+    const bridge = (globalThis as { daemonClient?: { openUrl?: (u: string) => Promise<unknown> } })
+      .daemonClient;
+    if (bridge?.openUrl) {
+      await bridge.openUrl(url);
+    }
+  }
+
   return {
     getState: () => state,
     subscribe: (listener) => {
@@ -308,5 +334,8 @@ export function createStore(options: CreateStoreOptions = {}): Store {
     requestGuide,
     requestVerify,
     retry,
+    prevStep,
+    nextStep,
+    openCurrentUrl,
   };
 }

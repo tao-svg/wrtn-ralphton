@@ -4,7 +4,8 @@ import { el, text, type ElementVNode } from '../vnode.js';
 export interface ActionButtonsProps {
   mode: UiMode;
   onGuide: () => void;
-  onVerify: () => void;
+  onNext: () => void;
+  isLastStep: boolean;
 }
 
 function isDisabled(mode: UiMode): boolean {
@@ -63,11 +64,11 @@ export function ActionButtons(props: ActionButtonsProps): ElementVNode {
         loadingPending === 'guide',
       ),
       button(
-        'btn-verify',
-        '✓ 진행 확인',
-        props.onVerify,
-        disabled,
-        loadingPending === 'verify',
+        'btn-next',
+        '▶ 다음',
+        props.onNext,
+        props.isLastStep,
+        false,
       ),
     ],
   );

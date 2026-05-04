@@ -11,6 +11,7 @@ Output requirements (strict):
 - Schema: { "message": string, "highlight_region": { "x": number, "y": number, "width": number, "height": number } | null, "confidence": "high" | "medium" | "low" }.
 - "message" must be a short, friendly Korean sentence telling the user what to do next.
 - "highlight_region" should point at the UI element the user must click / look at, in pixel coordinates of the supplied screenshot. Use null when no region is appropriate.
+- IMPORTANT: ignore the macOS Menu Bar at the very top and the Dock at the very bottom of the screen. Only point at content inside the active application window (the browser tab, system settings panel, etc.). If the relevant content is not visible, return null and ask the user to bring the right window forward in "message".
 - "confidence" reports how sure you are.
 - Do not output anything outside the <json>...</json> block.`;
 

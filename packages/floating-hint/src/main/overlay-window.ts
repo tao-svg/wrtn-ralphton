@@ -94,6 +94,12 @@ export function createOverlayWindow(
   if (typeof win.setVisibleOnAllWorkspaces === 'function') {
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   }
+  // 캡처에서 자기 자신(이전 빨간 박스 포함) 제외 — Vision이 우리 박스를
+  // 다시 인식해서 좌표가 표류하는 걸 막는다.
+  const winAny = win as unknown as { setContentProtection?: (on: boolean) => void };
+  if (typeof winAny.setContentProtection === 'function') {
+    winAny.setContentProtection(true);
+  }
   void win.loadFile(options.htmlPath);
   return win;
 }

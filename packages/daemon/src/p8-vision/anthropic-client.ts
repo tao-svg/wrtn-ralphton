@@ -138,6 +138,27 @@ function extractJsonBlock(raw: string): unknown {
   );
 }
 
+// Sonnet 4.5는 응답마다 highlight_region을 `{x,y,width,height}` 또는
+// `{x,y,w,h}` 둘 중 하나로 반환 — 같은 prompt에도 일관성이 없다.
+// zod schema는 width/height만 받으므로 w/h를 풀 이름으로 정규화.
+function normalizeJson(json: unknown): unknown {
+  if (typeof json !== 'object' || json === null) return json;
+  const obj = json as Record<string, unknown>;
+  const r = obj.highlight_region;
+  if (r && typeof r === 'object') {
+    const region = r as Record<string, unknown>;
+    if (region.w !== undefined && region.width === undefined) {
+      region.width = region.w;
+    }
+    if (region.h !== undefined && region.height === undefined) {
+      region.height = region.h;
+    }
+    delete region.w;
+    delete region.h;
+  }
+  return json;
+}
+
 // 응답 JSON: { message, highlight_region: {x,y,width,height} | null, confidence }
 const GuideResponseSchema = z
   .object({
@@ -235,38 +256,109 @@ async function callMessages(
   }
 }
 
+// reference impl(ralph-floating-hint)에서 가져온 2-pass refine 기법:
+// 1차로 전체 화면에서 대략적 위치를 잡고, 그 주변을 sharp로 crop해서 모델에
+// 좁은 영역만 다시 보여주면 픽셀 정확도가 눈에 띄게 올라간다.
+async function cropAround(
+  raw: Buffer,
+  region: { x: number; y: number; width: number; height: number },
+): Promise<{
+  cropBuffer: Buffer;
+  cropRect: { x: number; y: number; width: number; height: number };
+}> {
+  const sharpMod = (await import('sharp')).default;
+  const meta = await sharpMod(raw).metadata();
+  const W = meta.width ?? 0;
+  const H = meta.height ?? 0;
+  if (W === 0 || H === 0) {
+    throw new Error('cropAround: cannot read image dimensions');
+  }
+  // 1차 박스의 4배(중심 유지), 최소 30% / 최대 60% 화면.
+  const targetW = Math.min(W * 0.6, Math.max(W * 0.3, region.width * 4));
+  const targetH = Math.min(H * 0.6, Math.max(H * 0.3, region.height * 4));
+  const cx = region.x + region.width / 2;
+  const cy = region.y + region.height / 2;
+  let x = Math.round(cx - targetW / 2);
+  let y = Math.round(cy - targetH / 2);
+  x = Math.max(0, Math.min(W - Math.round(targetW), x));
+  y = Math.max(0, Math.min(H - Math.round(targetH), y));
+  const w = Math.min(Math.round(targetW), W - x);
+  const h = Math.min(Math.round(targetH), H - y);
+  const cropBuffer = await sharpMod(raw)
+    .extract({ left: x, top: y, width: w, height: h })
+    .png()
+    .toBuffer();
+  return { cropBuffer, cropRect: { x, y, width: w, height: h } };
+}
+
 export async function callGuide(
   input: CallVisionInput,
   options: AnthropicClientOptions = {},
 ): Promise<CallGuideResult> {
   const client = getClient(options);
   const userPrompt = buildGuideUserPrompt({ item: input.item, step: input.step });
-  const { message, latencyMs } = await callMessages(
+
+  // Pass 1: 전체 화면에서 대략적 좌표
+  const { message: msg1, latencyMs: t1 } = await callMessages(
     client,
     GUIDE_SYSTEM_PROMPT,
     userPrompt,
     input.buffer,
   );
-  const text = extractText(message);
-  const json = extractJsonBlock(text);
-  const parsed = GuideResponseSchema.safeParse(json);
-  if (!parsed.success) {
+  const text1 = extractText(msg1);
+  const json1 = normalizeJson(extractJsonBlock(text1));
+  const parsed1 = GuideResponseSchema.safeParse(json1);
+  if (!parsed1.success) {
     throw new VisionResponseFormatError(
-      `vision_response_format_error: ${parsed.error.message}`,
-      text,
+      `vision_response_format_error: ${parsed1.error.message}`,
+      text1,
     );
   }
-  const highlightRegion = parsed.data.highlight_region ?? undefined;
+
+  let finalMessage = parsed1.data.message;
+  let finalConfidence = parsed1.data.confidence;
+  let finalRegion = parsed1.data.highlight_region ?? undefined;
+  let totalLatency = t1;
+
+  // Pass 2: 1차에서 region이 있으면 그 주변만 crop해서 재추론
+  if (finalRegion) {
+    try {
+      const { cropBuffer, cropRect } = await cropAround(input.buffer, finalRegion);
+      const refinePrompt = `${userPrompt}\n\nNOTE: This is a CROPPED region of the previous screenshot.\nRe-locate the exact same target with pixel precision. Coordinates in the JSON response must be relative to THIS crop image (not the original).`;
+      const { message: msg2, latencyMs: t2 } = await callMessages(
+        client,
+        GUIDE_SYSTEM_PROMPT,
+        refinePrompt,
+        cropBuffer,
+      );
+      totalLatency += t2;
+      const text2 = extractText(msg2);
+      const json2 = normalizeJson(extractJsonBlock(text2));
+      const parsed2 = GuideResponseSchema.safeParse(json2);
+      if (parsed2.success && parsed2.data.highlight_region) {
+        const r = parsed2.data.highlight_region;
+        finalRegion = {
+          x: cropRect.x + r.x,
+          y: cropRect.y + r.y,
+          width: r.width,
+          height: r.height,
+        };
+        if (parsed2.data.confidence) finalConfidence = parsed2.data.confidence;
+        if (parsed2.data.message) finalMessage = parsed2.data.message;
+      }
+    } catch {
+      // Pass 2 실패는 1차 결과 그대로 사용 — 데모 멈추지 않도록.
+    }
+  }
+
   const result: VisionGuideResult = {
     type: 'guide',
-    message: parsed.data.message,
-    confidence: parsed.data.confidence,
-    ...(highlightRegion ? { highlight_region: highlightRegion } : {}),
+    message: finalMessage,
+    confidence: finalConfidence,
+    ...(finalRegion ? { highlight_region: finalRegion } : {}),
   };
-  // Round-trip through the canonical shared schema so the daemon and the rest
-  // of the pipeline never disagree on shape.
   VisionGuideResultSchema.parse(result);
-  return { ...result, latency_ms: latencyMs };
+  return { ...result, latency_ms: totalLatency };
 }
 
 export async function callVerify(
@@ -282,7 +374,7 @@ export async function callVerify(
     input.buffer,
   );
   const text = extractText(message);
-  const json = extractJsonBlock(text);
+  const json = normalizeJson(extractJsonBlock(text));
   const parsed = VerifyResponseSchema.safeParse(json);
   if (!parsed.success) {
     throw new VisionResponseFormatError(
